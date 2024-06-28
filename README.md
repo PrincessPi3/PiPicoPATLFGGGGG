@@ -4,6 +4,11 @@
 A tool for simplifying power analysis attacks against other gadgets. 
 Built on the Raspberry Pi Pico W, it runs a PWM channel to do manual clock control on the nugget you're hacking, and then reads an ADC channel to measure voltage used at each clock cycle.
 
+## Screenshots
+![index-page](resources/index.png)
+  
+![running-page](resources/running.png)
+
 ## Installation
 Make sure you have Micropython installed on your Pico W.
 Open up your Pico W in your favorite IDE (Thonny and VS Code are commonly used) and upload main.py.
@@ -87,6 +92,8 @@ Scenario:  You have and ESP32-S3 based device with flash and bootloader encrypti
 8) Dump serial data to some manner of logger Todo: figure out this tooling
 9) Perform statistical attack to dump key! Todo: automate and figure out tooling
 
+--
+
 Distributed under the [WTFPL - The Do What the Fuck You Want to Public License](http://www.wtfpl.net/)  
-See [COPYING.txt](COPYING.txt)
+See [COPYING.txt](COPYING.txt)  
 ![WTFPL](resources/wtfpl.png)
