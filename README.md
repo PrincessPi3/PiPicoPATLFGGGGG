@@ -4,7 +4,7 @@
 A tool for simplifying power analysis attacks against other gadgets. 
 Built on the Raspberry Pi Pico W, it runs a PWM channel to do manual clock control on the nugget you're hacking, and then reads an ADC channel to measure voltage used at each clock cycle.
 
-## Installataion
+## Installation
 Make sure you have Micropython installed on your Pico W.
 Open up your Pico W in your favorite IDE (Thonny and VS Code are commonly used) and upload main.py.
 If you're having trouble, see the official [Raspberry Pi Pico W Getting Started Page](https://projects.raspberrypi.org/en/projects/get-started-pico-w)
@@ -75,3 +75,18 @@ For #2, we need to remove the builtin crystal oscilator and replace that connect
 For this example, I will describe a firmware decryption power analysis attack.  
   
 Scenario:  You have and ESP32-S3 based device with flash and bootloader encryption set up on it. You Can remove the RF sheield and get a raw dump of the flash chip with a SOP8 test clip and a programmer, but the data is encrypted.
+
+## Method
+1) We disassemble the device to the bare board we're interested in
+2) Then remove the RF shield and crystal oscilator from the ESP32-S3 via reflow
+3) Clip a SOP8 test clip on the 8pin flash chip and dump the encrypted data with a programmer like a CH431a or T48
+4) Set up the breadboard with the Pico W.
+5) Place the clock_pulse_pin probe where the crystal oscillator used to be
+6) Place power_analysis_pin probe on the rawest vin power spot you can find
+7) Run the Pico W (see Usage)
+8) Dump serial data to some manner of logger Todo: figure out this tooling
+9) Perform statistical attack to dump key! Todo: automate and figure out tooling
+
+Distributed under the [WTFPL - The Do What the Fuck You Want to Public License](http://www.wtfpl.net/)  
+See [COPYING.txt](COPYING.txt)
+![WTFPL](resources/wtfpl.png)
