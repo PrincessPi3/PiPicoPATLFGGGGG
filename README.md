@@ -52,7 +52,7 @@ If you're having trouble, see the official [Raspberry Pi Pico W Getting Started 
 `Frequency`  
      Frequency in Hertz (Hz)  
      How many times per second you want your nuggets clock to pulse  
-     Dont make this too high  
+     Dont make this too high
   
 `Samples Per Manual Clock Pulse`  
      This is how many times per clock pulse to sample the nuggets power usage  
@@ -92,6 +92,7 @@ Scenario:  You have and ESP32-S3 based device with flash and bootloader encrypti
 8) Dump serial data to some manner of logger Todo: figure out this tooling
 9) Perform statistical attack to dump key! Todo: automate and figure out tooling
 
+Todo: Make readme not suck
 --
 
 Distributed under the [WTFPL - The Do What the Fuck You Want to Public License](http://www.wtfpl.net/)  
