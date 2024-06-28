@@ -5,9 +5,17 @@ A tool for simplifying power analysis attacks against other gadgets.
 Built on the Raspberry Pi Pico W, it runs a PWM channel to do manual clock control on the nugget you're hacking, and then reads an ADC channel to measure voltage used at each clock cycle.
 
 ## Screenshots
+Config page  
 ![index-page](resources/index.png)
   
+Running page  
 ![running-page](resources/running.png)
+  
+Serial terminal at boot  
+![terminal-boot](resources/terminal0.png)
+  
+Serial terminal while sampling and looping  
+![terminal-running](resources/terminal-running.png)
 
 ## Installation
 Make sure you have Micropython installed on your Pico W.
@@ -43,6 +51,12 @@ If you're having trouble, see the official [Raspberry Pi Pico W Getting Started 
      Your wifi password  
      Dont forget the 's around the password  
   
+`power_on_pin`  
+     The pin that toggles 3.3v on and off to activate and reset the nugget board  
+  
+`seconds_awake`
+     The number of seconds to turn on power_on_pin before resetting  
+
 ### On the Webpage
 `Duty Cycle`  
      The Percentage of the time that the clock is on vs off  

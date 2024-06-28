@@ -1,10 +1,10 @@
 import network
 import socket
 import machine
+from machine import Timer
 import utime
 import _thread
 import math
-#import os
 
 
 # gpio pin to read power analysis off of (int)
@@ -15,9 +15,16 @@ power_analysis_pin = 28
 # output gpio pin generating clock pulse
 clock_pulse_pin = 20
 
+# this pin gets power and toggles off and on every X PWM cycles
+# it powers the board you're targeting
+power_on_pin = 2
+
+# how many seconds to power the board before reset
+seconds_awake = 3
+
 # Wi-Fi credentials
 ssid = 'your-wifi-name-here'
-password = 'yuour-wifi-password-here'
+password = 'your-wifi-password-here'
 
 # == Clock Pulse Genertor == #
 # starts a pwm
@@ -63,7 +70,7 @@ header = f"""
             <link rel="preload" href="http://10.0.0.80/ComicCode-Regular.woff2" as="font" type="font/woff2" crossorigin>
             <style>
             body {{
-                font-family: 'Comic Code';
+                font-family: 'Comic Code', 'Comic Sans', Monospace;
                 font-weight: normal;
                 font-style: normal;
             }}
@@ -137,6 +144,21 @@ def running_webpage(outpin = 20, adcpin = 28, duty_cycle = 0.5, frequency = 2000
 
 print("Board Started or Reset\n===========\n\n")
 
+toggle_power = machine.Pin(power_on_pin, machine.Pin.OUT)
+toggle_power.value(0)
+
+# I like to have the LED on :3
+led = machine.Pin('LED', machine.Pin.OUT)
+led.value(1)
+
+# do da thingggggssssss
+def reset_init(t):
+    print("==Looping==")
+
+    toggle_power.value(1)
+    utime.sleep(1)
+    toggle_power(0)
+
 # Connect to WLAN
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
@@ -165,10 +187,6 @@ s = socket.socket()
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind(addr)
 s.listen()
-    
-# I like to have the LED on :3
-led = machine.Pin('LED', machine.Pin.OUT)
-led.value(1)
 
 while True:
     try:
@@ -193,17 +211,21 @@ while True:
                 if req_split[0] == 'duty_cycle':
                         duty_cycle_in = float(req_split[1])
                 elif req_split[0] == 'freq':
-                        freq_in = int(req_split[1])
+                    freq_in = int(req_split[1])
                 elif req_split[0] == 'samples_per_pulse':
                         samples_per_pulse_in =  int(req_split[1])
-            print(f"power_analysis_pin: {power_analysis_pin}\nduty_cycle_in: {duty_cycle_in}\nfreq_in: {freq_in}\nsamples_per_pulse_in:{samples_per_pulse_in}")
-            
+            loop_time = 1000*(seconds_awake-1)
+
+            print(f"power_analysis_pin: {power_analysis_pin}\nduty_cycle_in: {duty_cycle_in}\nfreq_in: {freq_in}\nsamples_per_pulse_in: {samples_per_pulse_in}\nloop_time (ms): {loop_time}\npower_on_pin: {power_on_pin}")
+
             # run the clock pulse (PWM) task 
             do_pwm(clock_pulse_pin, duty_cycle_in, freq_in)
 
             # fork the voltage measuring ADC reading to the second core
-            _thread.start_new_thread(do_adc, (power_analysis_pin, duty_cycle_in, freq_in, samples_per_pulse_in))
-            
+            adc_thread = _thread.start_new_thread(do_adc, (power_analysis_pin, duty_cycle_in, freq_in, samples_per_pulse_in))
+
+            Timer(mode=Timer.PERIODIC, period=loop_time, callback=reset_init)
+
             response = running_webpage()
 
         else: 
