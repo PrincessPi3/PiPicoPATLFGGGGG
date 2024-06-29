@@ -6,7 +6,6 @@ import utime
 import _thread
 import math
 
-
 # gpio pin to read power analysis off of (int)
 # reads 16bit (0-65535) between 0.0v and 3.3v
 # (16 bit is phony, real read is 12 bit)
@@ -29,70 +28,77 @@ password = 'your-wifi-password-here'
 # == Clock Pulse Genertor == #
 # starts a pwm
 # usage do_pwm(int gpio_pin, float duty_cycle, int hertz frequency, int samples_per_clock_pulse)
-def do_pwm(outpin = 20, duty_cycle = 0.5, frequency = 2000):
-  print('Starting Clock Pulse PWM')
-  output_pin = machine.Pin(outpin)
-  pwm_pin = machine.PWM(output_pin)
-  pwm_pin.freq(frequency)
-  
-  pwm_duty = math.floor(duty_cycle*65535)
-  percent_duty = duty_cycle*100
-  pwm_pin.duty_u16(pwm_duty)
-  print(f"Clock Pulses Running\n\tGPIO Pin: {outpin}\n\tDuty Cycle: {percent_duty}%\n\tFrequency: {frequency}Hz")
+def do_pwm(outpin, duty_cycle, frequency):
+    global pwm_pin
+    output_pin = machine.Pin(outpin)
+    
+    # configure pwm
+    pwm_pin = machine.PWM(output_pin)
+    pwm_pin.freq(frequency) # frequency in Hz
+    pwm_duty = math.floor(duty_cycle*65535) # duty cycle is a uint 16bit 
 
-# us of sleep calculate4d by floor(1000000 / (frequency_in_Hz * samples_per_pulse))
+    # run da pwm
+    pwm_pin.duty_u16(pwm_duty)
+
+# us of sleep calculate4d by ceil(1000000 / (frequency_in_Hz * samples_per_pulse))
+# 1000000 is one million, 1,000,000 or 10^6
 def us_samples(frequency, samples_per_pulse):
-     return math.floor(1000000/(frequency*samples_per_pulse))
+    return math.ceil(1000000/(frequency*samples_per_pulse))
 
 # == Read Value off of device == #
 # uses ADC,  16bit output is phony, is actualloy 12bit.
-# us of sleep calculate4d by floor(1000000 / (frequency_in_Hz * samples_per_pulse))
-def do_adc(adcpin=28, duty_cycle = 0.5, frequency = 2000, samples_per_pulse = 100):
-    print('Starting voltage reading ADC')
-    semaphore_thread_adc = _thread.allocate_lock()
+kill = False # for the thread killing hack
+def do_adc(adcpin, frequency, samples_per_pulse):
     analog_value = machine.ADC(adcpin)
     us_sample = us_samples(frequency, samples_per_pulse)
-    while True:
-        semaphore_thread_adc.acquire()
-        reading = analog_value.read_u16()     
-        print(reading)
-        utime.sleep_us(us_sample)
-        semaphore_thread_adc.release()
 
-# == HTTP Stuff == #
+    global kill
+    while True:
+        reading = analog_value.read_u16() # do the actual reading, actual precision is 12bit
+        print(reading,',',sep='')
+        utime.sleep_us(us_sample)
+
+        # just keep checking if kill is set to True by reset_init()
+        # if it is True, reset kill to False, kill the thread, and break for good measure
+        if kill is True:
+            kill = False
+            _thread.exit()
+            break
+
 # HTML template for the webpage
-header = f"""
+header = """
         <!DOCTYPE html>
         <html>
         <head>
             <title>SillyFilly Pi Pico Power Analysis Tool (LFFGGGGG)</title>
             <meta name="viewport" content="width=device-width, initial-scale=1">
+            <!-- todo: actually host this font file somewhere lmfao -->
             <link rel="preload" href="http://10.0.0.80/ComicCode-Regular.woff2" as="font" type="font/woff2" crossorigin>
             <style>
-            body {{
-                font-family: 'Comic Code', 'Comic Sans', Monospace;
+            body {
+                font-family: 'Comic Code', 'Comic Sans MS', Monospace;
                 font-weight: normal;
                 font-style: normal;
-            }}
+            }
 
-            form, div {{
+            form, div {
                 width: 80%;
                 margin: auto;
-            }}
+            }
 
-            h1 {{
+            h1 {
                 font-size: 1.15em;'
-            }}
+            }
 
-            form input[type='number'] {{
+            form input[type='number'] {
                 width: 3.6em;
-            }}
+            }
             </style>
         </head>
         <body>
 """
 
-footer = f"""
+footer = """
         </body>
         </html>
 """
@@ -120,7 +126,7 @@ def default_webpage():
         """
     return str(template)
 
-def running_webpage(outpin = 20, adcpin = 28, duty_cycle = 0.5, frequency = 2000, samples_per_pulse = 100):
+def running_webpage(outpin, adcpin, duty_cycle, frequency, samples_per_pulse, loop_time):
     dutyy = duty_cycle*100
     us_sample = us_samples(frequency, samples_per_pulse)
     template = f"""
@@ -130,11 +136,13 @@ def running_webpage(outpin = 20, adcpin = 28, duty_cycle = 0.5, frequency = 2000
             <h2>WE RUNNING NOWWWWW LFGGGGGGGGGGGGG</h2>
             <p>
                 Clock Pulse Pin: <b>{outpin}</b><br>
-                Power Analysis Pin: <b>{adcpin}</b><br><br>
+                Power Analysis Pin: <b>{adcpin}</b><br>
+                Power On Pin:{power_on_pin} <b></b><br><br><br>
 
-                Frequency: <b>{frequency}Hz</b> (Duty Cycle: <b>{dutyy}%</b>)<br>
+                Frequency: <b>{frequency}Hz</b> (Duty Cycle: <b>{dutyy}%</b><br>
                 Samples Per Pulse: <b>{samples_per_pulse}</b><br>
                 Delay Between Samples: <b>{us_sample}us</b><br><br>
+                Loop length: <b>{loop_time}</b><br><br><br>
                 <b>LFGGGGGGGG FRONG</b>
             </p>
             </div>
@@ -151,13 +159,19 @@ toggle_power.value(0)
 led = machine.Pin('LED', machine.Pin.OUT)
 led.value(1)
 
-# do da thingggggssssss
+# do da thingggggssssss for da loooop
 def reset_init(t):
+    global kill
+    kill = True # kill da adc thread
+    toggle_power.value(0) # kill power on pin
     print("==Looping==")
-
-    toggle_power.value(1)
+    pwm_pin.deinit() # stop pwm
     utime.sleep(1)
-    toggle_power(0)
+    toggle_power.value(1) # re-enable power on pin
+    do_pwm(clock_pulse_pin, duty_cycle_in, freq_in) # restart pwm
+
+    # restart da threaddyyyyy
+    _thread.start_new_thread(do_adc, (power_analysis_pin, freq_in, samples_per_pulse_in))
 
 # Connect to WLAN
 wlan = network.WLAN(network.STA_IF)
@@ -165,7 +179,7 @@ wlan.active(True)
 wlan.connect(ssid, password)
     
 # Wait for Wi-Fi connection
-connection_timeout = 10
+connection_timeout = 9
 while connection_timeout > 0:
     if wlan.status() >= 3:
         break
@@ -209,24 +223,28 @@ while True:
                 req_split = f.split('=')
                 # Type strict whitelist for safety and compatibility
                 if req_split[0] == 'duty_cycle':
-                        duty_cycle_in = float(req_split[1])
+                    duty_cycle_in = float(req_split[1])
                 elif req_split[0] == 'freq':
                     freq_in = int(req_split[1])
                 elif req_split[0] == 'samples_per_pulse':
-                        samples_per_pulse_in =  int(req_split[1])
-            loop_time = 1000*(seconds_awake-1)
+                    samples_per_pulse_in =  int(req_split[1])
 
-            print(f"power_analysis_pin: {power_analysis_pin}\nduty_cycle_in: {duty_cycle_in}\nfreq_in: {freq_in}\nsamples_per_pulse_in: {samples_per_pulse_in}\nloop_time (ms): {loop_time}\npower_on_pin: {power_on_pin}")
+            loop_time = (seconds_awake-1)*1000 # the -1 is because reset_init() adds a 1 second delay
+            dutyyy = duty_cycle_in*100
+            us_sample = us_samples(freq_in, samples_per_pulse_in)
+
+            print(f"Clock pulse pin: {clock_pulse_pin}\n\nPower analysis pin: {power_analysis_pin}\n\nPower on pin: {power_on_pin}\n\nDuty cycle: {duty_cycle_in}%\n\nFrequency: {freq_in}Hz\n\nSamples per clock pulse: {samples_per_pulse_in}\n\nTime between samples: {us_sample}us\n\nLoop length: {loop_time}ms\n\n")
 
             # run the clock pulse (PWM) task 
             do_pwm(clock_pulse_pin, duty_cycle_in, freq_in)
 
             # fork the voltage measuring ADC reading to the second core
-            adc_thread = _thread.start_new_thread(do_adc, (power_analysis_pin, duty_cycle_in, freq_in, samples_per_pulse_in))
+            _thread.start_new_thread(do_adc, (power_analysis_pin,  freq_in, samples_per_pulse_in))
 
             Timer(mode=Timer.PERIODIC, period=loop_time, callback=reset_init)
 
-            response = running_webpage()
+            # outpin, adcpin, duty_cycle, frequency, samples_per_pulse, loop_time
+            response = running_webpage(clock_pulse_pin, power_analysis_pin, dutyyy, freq_in, samples_per_pulse_in, loop_time)
 
         else: 
             response = default_webpage()  

@@ -1,5 +1,7 @@
 .vscode
 .micropico
+.gitignore
 PiPicoPATLFGGGGG.code-workspace
-main_dev.py
+dev
 ComicCode-Regular.*
+logs
